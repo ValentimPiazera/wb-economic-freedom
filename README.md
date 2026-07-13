@@ -77,7 +77,7 @@ freedom-vs-development/
 - [x] Define project scope and data sources
 - [x] Set up folder structure
 - [x] Download raw data (World Bank + Economic Freedom Index)
-- [ ] Standardize country names/codes across sources
+- [x] Standardise country names/codes across sources
 - [ ] Merge datasets into a single country-year table
 - [ ] Handle missing data and outliers
 - [ ] Exploratory analysis and visualization
