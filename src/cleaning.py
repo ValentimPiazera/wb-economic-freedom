@@ -95,3 +95,39 @@ def drop_unmatched_countries(df, column, values_to_drop):
     df = df.copy()
     df = df[~df[column].isin(values_to_drop)]
     return df
+
+
+def melt_years(df, id_vars, var_name="Year", value_name="Value"):
+    """Melts year columns into long format and clean the Year column
+    into a proper integer (e.g. "2001 [YR2001]" -> 2001)."""
+    df = df.copy()
+
+    year_columns = [col for col in df.columns if col not in id_vars]
+
+    df_long = df.melt(
+        id_vars=id_vars,
+        value_vars=year_columns,
+        var_name=var_name,
+        value_name=value_name,
+    )
+
+    df_long[var_name] = df_long[var_name].str.extract(r"(\d{4})").astype(int)
+
+    return df_long
+
+
+def pivot_indicators(
+    df, index_cols, columns_col="Series Name", values_col="Value"
+):
+    """Pivot indicator rows into columns, producing one row per
+    country-year combination."""
+    df_wide = df.pivot_table(
+        index=index_cols,
+        columns=columns_col,
+        values=values_col,
+        aggfunc="first",
+    ).reset_index()
+
+    df_wide.columns.name = None
+
+    return df_wide
