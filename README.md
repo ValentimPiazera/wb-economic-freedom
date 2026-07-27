@@ -78,8 +78,8 @@ freedom-vs-development/
 - [x] Set up folder structure
 - [x] Download raw data (World Bank + Economic Freedom Index)
 - [x] Standardise country names/codes across sources
-- [ ] Merge datasets into a single country-year table
-- [ ] Handle missing data and outliers
+- [x] Merge datasets into a single country-year table
+- [In progress] Handle missing data and outliers
 - [ ] Exploratory analysis and visualization
 - [ ] Feature selection for modeling
 - [ ] Machine learning model (future)
