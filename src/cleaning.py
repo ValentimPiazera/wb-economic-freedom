@@ -1,3 +1,5 @@
+import pandas as pd
+
 rows_to_drop = [
     "Data from database: World Development Indicators",
     "Last Updated: 07/01/2026",
@@ -65,6 +67,17 @@ COUNTRY_NAME_MAPPING = {
     "Philippines": "The Philippines",
 }
 
+wb_numeric_cols = [
+    "Carbon dioxide (CO2) emissions (total) excluding LULUCF (Mt CO2e)",
+    "Foreign direct investment, net inflows (% of GDP)",
+    "GDP growth (annual %)",
+    "Inflation, consumer prices (annual %)",
+    "Life expectancy at birth, total (years)",
+    "Poverty headcount ratio at $3.00 a day (2021 PPP) (% of population)",
+    "School enrollment, secondary (% gross)",
+    "Unemployment, total (% of total labor force) (modeled ILO estimate)",
+]
+
 
 def compare_countries(
     df1, df2, col1, col2, label1="Dataset 1", label2="Dataset 2"
@@ -131,3 +144,14 @@ def pivot_indicators(
     df_wide.columns.name = None
 
     return df_wide
+
+
+def convert_columns_to_numeric(df, columns):
+    """Convert specified columns to numeric, removing thousand separators
+    and coercing non-numeric values (e.g. '..') to NaN."""
+    df = df.copy()
+    for col in columns:
+        df[col] = pd.to_numeric(
+            df[col].astype(str).str.replace(",", ""), errors="coerce"
+        )
+    return df
