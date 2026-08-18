@@ -1,0 +1,5 @@
+{
+  // Notebooks import `from src import ...` and read `data/...`, so they must
+  // run with the repository root as the working directory, not notebooks/.
+  "jupyter.notebookFileRoot": "${workspaceFolder}"
+}

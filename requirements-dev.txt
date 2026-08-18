@@ -1,0 +1,5 @@
+-r requirements.txt
+
+# Tooling only; not needed to run the notebooks.
+ruff>=0.16
+pytest>=8.0

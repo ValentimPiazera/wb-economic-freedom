@@ -1,7 +1,13 @@
+"""Cleaning and merging transformations for the two raw sources.
+
+Each function returns a new frame rather than mutating its input, so a
+notebook cell can be re-run without compounding earlier edits.
+"""
+
 import pandas as pd
 import pycountry_convert as pc
 
-rows_to_drop = [
+ROWS_TO_DROP = [
     "Data from database: World Development Indicators",
     "Last Updated: 07/01/2026",
     "American Samoa",
@@ -76,7 +82,7 @@ CONTINENT_OVERRIDES = {
     "TLS": "Asia",
 }
 
-wb_numeric_cols = [
+WB_NUMERIC_COLS = [
     "Carbon dioxide (CO2) emissions (total) excluding LULUCF (Mt CO2e)",
     "Foreign direct investment, net inflows (% of GDP)",
     "GDP growth (annual %)",
@@ -91,7 +97,7 @@ wb_numeric_cols = [
 def compare_countries(
     df1, df2, col1, col2, label1="Dataset 1", label2="Dataset 2"
 ):
-    """Compares and prints unmatched countries between two datasets."""
+    """Compare and print unmatched countries between two datasets."""
     set1 = set(df1[col1].unique())
     set2 = set(df2[col2].unique())
 
@@ -105,23 +111,29 @@ def compare_countries(
 
 
 def standardise_country_names(df, column, mapping=COUNTRY_NAME_MAPPING):
-    """Standardise country names in a DataFrame column using a fixed mapping."""
+    """Standardise country names in a column using a fixed mapping."""
     df = df.copy()
     df[column] = df[column].replace(mapping)
     return df
 
 
 def drop_unmatched_countries(df, column, values_to_drop):
-    """Remove rows with country values that have no match in the other dataset
-    (junk rows, territories, or countries without coverage in both sources)."""
+    """Remove country values that have no match in the other dataset.
+
+    Covers junk rows, territories, and countries without coverage in both
+    sources.
+    """
     df = df.copy()
     df = df[~df[column].isin(values_to_drop)]
     return df
 
 
 def melt_years(df, id_vars, var_name="Year", value_name="Value"):
-    """Melts year columns into long format and clean the Year column
-    into a proper integer (e.g. "2001 [YR2001]" -> 2001)."""
+    """Melt the year columns into long format.
+
+    The Year column is cleaned into a proper integer along the way
+    (e.g. "2001 [YR2001]" -> 2001).
+    """
     df = df.copy()
 
     year_columns = [col for col in df.columns if col not in id_vars]
@@ -141,8 +153,10 @@ def melt_years(df, id_vars, var_name="Year", value_name="Value"):
 def pivot_indicators(
     df, index_cols, columns_col="Series Name", values_col="Value"
 ):
-    """Pivot indicator rows into columns, producing one row per
-    country-year combination."""
+    """Pivot indicator rows into columns.
+
+    Produces one row per country-year combination.
+    """
     df_wide = df.pivot_table(
         index=index_cols,
         columns=columns_col,
@@ -156,15 +170,23 @@ def pivot_indicators(
 
 
 def code_to_continent(code, overrides=CONTINENT_OVERRIDES):
-    """Resolve a single ISO3 country code to a continent name, returning NA
-    when pycountry_convert has no entry for it and no override is defined."""
+    """Resolve a single ISO3 country code to a continent name.
+
+    Returns NA when pycountry_convert has no entry for the code and no
+    override is defined, rather than raising.
+    """
+    if pd.isna(code):
+        return pd.NA
+
     if code in overrides:
         return overrides[code]
 
+    # pycountry_convert raises KeyError for codes it does not know, but
+    # TypeError for anything that is not a well-formed code string.
     try:
         alpha2 = pc.country_alpha3_to_country_alpha2(code)
         continent_code = pc.country_alpha2_to_continent_code(alpha2)
-    except KeyError:
+    except (KeyError, TypeError):
         return pd.NA
 
     return pc.convert_continent_code_to_continent_name(continent_code)
@@ -179,15 +201,19 @@ def add_continent_column(
     with the UN M49 geoscheme: Central America and the Caribbean fall under
     North America, and transcontinental states are classified by their M49
     region (Russia as Europe; Türkiye, Cyprus, Georgia, Armenia and Azerbaijan
-    as Asia)."""
+    as Asia).
+    """
     df = df.copy()
     df[continent_column] = df[code_column].map(code_to_continent)
     return df
 
 
 def convert_columns_to_numeric(df, columns):
-    """Convert specified columns to numeric, removing thousand separators
-    and coercing non-numeric values (e.g. '..') to NaN."""
+    """Convert the given columns to numeric.
+
+    Removes thousand separators and coerces the World Bank null marker
+    ('..') to NaN.
+    """
     df = df.copy()
     for col in columns:
         df[col] = pd.to_numeric(

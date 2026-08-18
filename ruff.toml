@@ -1,0 +1,30 @@
+# Matches the wrapping already used across src/ and the notebook cells.
+line-length = 79
+target-version = "py313"
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "W",    # pycodestyle warnings
+    "F",    # pyflakes
+    "I",    # import sorting
+    "B",    # flake8-bugbear
+    "UP",   # pyupgrade
+    "SIM",  # flake8-simplify
+    "PD",   # pandas-vet
+    "D",    # pydocstyle
+]
+ignore = [
+    "D203",  # incompatible with D211
+    "D213",  # incompatible with D212
+]
+
+[lint.per-file-ignores]
+# Test names are the documentation; a docstring per test would only restate them.
+"tests/*" = ["D100", "D101", "D102", "D103"]
+
+[lint.pydocstyle]
+convention = "google"
+
+[format]
+docstring-code-format = true
