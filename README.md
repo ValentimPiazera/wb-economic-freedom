@@ -146,6 +146,21 @@ Both commands run from the repository root. Notebooks are linted too, which is w
 - [ ] Feature selection for modelling
 - [ ] Machine learning model
 
+## Technical References
+
+The conventions in this repository are not invented ad hoc; each one is borrowed from a source that argues for it.
+
+| Reference | Author | What it informed here |
+| --- | --- | --- |
+| *Hands-On Machine Learning with Scikit-Learn, Keras & TensorFlow*, 3rd edition | Aurélien Géron | The modelling stage — validation strategy, leakage, and the reasoning behind the measured constraints in `III-ml.ipynb` |
+| *Software Engineering for Data Scientists* | Catherine Nelson | Repository layout (`src/` — `notebooks/` — `tests/`), testing the pure transformations, linting and formatting as a definition of done |
+| *Python for Data Analysis*, 3rd edition | Wes McKinney | pandas idiom — reshaping with melt/pivot, merging, missing-data handling |
+
+Library documentation was the reference of record for API behaviour, in preference to secondhand summaries:
+[pandas](https://pandas.pydata.org/docs/), [matplotlib](https://matplotlib.org/stable/index.html), [plotly](https://plotly.com/python/), [scikit-learn](https://scikit-learn.org/stable/), [pycountry_convert](https://pypi.org/project/pycountry-convert/), [ruff](https://docs.astral.sh/ruff/), [pytest](https://docs.pytest.org/).
+
+**Claude Opus 5** (Anthropic) was used as a working assistant throughout: interpreting the data, pressure-testing conclusions, and reviewing code. Every finding it surfaced was verified against the dataset before being written down — the figures quoted in this README and in the notebooks are measured, not asserted.
+
 ## License
 
 Data is provided by the World Bank (CC BY-4.0) and the Heritage Foundation. This repository's code is available under the [MIT License](LICENSE).
