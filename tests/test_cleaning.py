@@ -208,6 +208,119 @@ class TestConvertColumnsToNumeric:
         assert result["GDP"].tolist() == [1000.5, 2000.25]
 
 
+class TestDecimalPlaces:
+    """Spurious precision has to be visible before it can be removed."""
+
+    def test_counts_the_stored_decimals_not_the_displayed_ones(self):
+        df = pd.DataFrame({"Inflation": [3.6045218374651234, 1.5]})
+
+        result = cleaning.decimal_places(df)
+
+        assert result["Inflation"] == 16
+
+    def test_ignores_trailing_zeros(self):
+        df = pd.DataFrame({"GDP": [2813571754.0, 1000.0]})
+
+        result = cleaning.decimal_places(df)
+
+        assert result["GDP"] == 0
+
+    def test_skips_non_numeric_columns(self):
+        df = pd.DataFrame({"Country Name": ["Portugal"], "GDP": [1.25]})
+
+        result = cleaning.decimal_places(df)
+
+        assert result.index.tolist() == ["GDP"]
+
+    def test_is_not_confused_by_missing_values(self):
+        df = pd.DataFrame({"GDP": [1.25, None]})
+
+        result = cleaning.decimal_places(df)
+
+        assert result["GDP"] == 2
+
+
+class TestRoundNumericColumns:
+    """Every numeric column is pinned to the precision its source supports."""
+
+    def test_rounds_each_column_to_its_mapped_precision(self):
+        df = pd.DataFrame(
+            {
+                "GDP (current US$)": [2813571753.87253],
+                "GDP growth (annual %)": [-9.431974328472],
+                "Overall Score": [59.74],
+            }
+        )
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result["GDP (current US$)"].iloc[0] == 2813571754.0
+        assert result["GDP growth (annual %)"].iloc[0] == -9.43
+        assert result["Overall Score"].iloc[0] == 59.7
+
+    def test_keeps_the_smallest_co2_readings_above_zero(self):
+        col = (
+            "Carbon dioxide (CO2) emissions (total) excluding LULUCF (Mt CO2e)"
+        )
+        df = pd.DataFrame({col: [0.0002]})
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result[col].iloc[0] == 0.0002
+
+    def test_leaves_values_numeric_rather_than_formatted_strings(self):
+        df = pd.DataFrame({"Overall Score": [59.74]})
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result["Overall Score"].dtype.kind == "f"
+
+    def test_preserves_integer_columns_as_integers(self):
+        df = pd.DataFrame({"Year": [2001], "Population, total": [20284307]})
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result["Year"].dtype.kind == "i"
+        assert result["Population, total"].dtype.kind == "i"
+
+    def test_preserves_missing_values(self):
+        df = pd.DataFrame({"Overall Score": [59.74, None]})
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result["Overall Score"].isna().tolist() == [False, True]
+
+    def test_ignores_non_numeric_columns(self):
+        df = pd.DataFrame(
+            {"Country Name": ["Portugal"], "Overall Score": [59.74]}
+        )
+
+        result = cleaning.round_numeric_columns(df)
+
+        assert result["Country Name"].iloc[0] == "Portugal"
+
+    def test_raises_for_a_numeric_column_with_no_mapped_precision(self):
+        df = pd.DataFrame({"Some New Indicator": [1.23456789]})
+
+        with pytest.raises(ValueError, match="Some New Indicator"):
+            cleaning.round_numeric_columns(df)
+
+    def test_does_not_mutate_the_input(self):
+        df = pd.DataFrame({"GDP growth (annual %)": [-9.431974328472]})
+        original = df.copy()
+
+        cleaning.round_numeric_columns(df)
+
+        assert_frame_equal(df, original)
+
+    def test_the_shipped_mapping_covers_every_exported_column(self):
+        exported = pd.read_csv("data/processed/wb_economic_freedom_merged.csv")
+
+        numeric = exported.select_dtypes("number").columns
+
+        assert set(numeric) <= set(cleaning.NUMERIC_PRECISION)
+
+
 class TestCompareCountries:
     """The mismatch report drives the standardisation mapping."""
 

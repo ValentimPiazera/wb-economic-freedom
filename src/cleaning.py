@@ -93,6 +93,42 @@ WB_NUMERIC_COLS = [
     "Unemployment, total (% of total labor force) (modeled ILO estimate)",
 ]
 
+# Decimal places kept per numeric column of the final merged frame. Float
+# arithmetic and the World Bank export leave up to eighteen decimal places
+# behind (an inflation rate to 1e-16 of a percentage point, a GDP figure
+# quoted past the cent) — precision neither source actually has, and enough
+# to make the exported CSV unreadable at a glance.
+#
+# Rates, percentages and per-capita figures keep two decimals; absolute
+# magnitudes keep whole units; the Heritage scores stay at the single decimal
+# Heritage itself publishes. CO2 is the one exception at four decimals: 24
+# country-years report less than 0.005 Mt (the smallest, 0.0002 Mt), and two
+# decimals would flatten every one of them to zero.
+NUMERIC_PRECISION = {
+    "Year": 0,
+    "Carbon dioxide (CO2) emissions (total) excluding LULUCF (Mt CO2e)": 4,
+    "Foreign direct investment, net inflows (% of GDP)": 2,
+    "GDP (current US$)": 0,
+    "GDP growth (annual %)": 2,
+    "Inflation, consumer prices (annual %)": 2,
+    "Life expectancy at birth, total (years)": 2,
+    "Population, total": 0,
+    "School enrollment, secondary (% gross)": 2,
+    "Unemployment, total (% of total labor force) (modeled ILO estimate)": 2,
+    "Overall Score": 1,
+    "Property Rights": 1,
+    "Government Integrity": 1,
+    "Tax Burden": 1,
+    "Government Spending": 1,
+    "Business Freedom": 1,
+    "Labor Freedom": 1,
+    "Monetary Freedom": 1,
+    "Trade Freedom": 1,
+    "Investment Freedom": 1,
+    "Financial Freedom": 1,
+    "GDP per capita (current US$)": 2,
+}
+
 
 def compare_countries(
     df1, df2, col1, col2, label1="Dataset 1", label2="Dataset 2"
@@ -219,4 +255,59 @@ def convert_columns_to_numeric(df, columns):
         df[col] = pd.to_numeric(
             df[col].astype(str).str.replace(",", ""), errors="coerce"
         )
+    return df
+
+
+def decimal_places(df):
+    """Count the decimal places each numeric column actually stores.
+
+    Reads the stored value rather than the displayed one, because pandas
+    prints a truncated view: an inflation rate shown as 3.60 may carry
+    eighteen decimal places behind it. Trailing zeros are ignored, so the
+    count reports meaningful decimals rather than formatting width.
+    """
+    numeric = df.select_dtypes("number").astype(str)
+
+    return (
+        numeric.apply(
+            lambda col: (
+                col.str.split(".").str[1].fillna("").str.rstrip("0").str.len()
+            )
+        )
+        .max()
+        .sort_values(ascending=False)
+    )
+
+
+def round_numeric_columns(df, precision=NUMERIC_PRECISION):
+    """Round every numeric column to the precision its source supports.
+
+    Rounding is deliberately the only rescaling applied here. Standardising
+    or min-max scaling would destroy the readability this step exists for,
+    and fitting a scaler across the whole table before any train/test split
+    would leak test-set statistics into training — so scaling belongs inside
+    a modelling pipeline, on the training fold only.
+
+    Raises for a numeric column missing from the mapping rather than passing
+    it through untouched: an indicator added to the pipeline later would
+    otherwise keep its full float precision in silence, which is exactly the
+    problem this step removes.
+    """
+    df = df.copy()
+
+    unmapped = [
+        col
+        for col in df.select_dtypes("number").columns
+        if col not in precision
+    ]
+    if unmapped:
+        raise ValueError(
+            f"No precision defined for numeric columns: {unmapped}. "
+            f"Add them to cleaning.NUMERIC_PRECISION."
+        )
+
+    for col, decimals in precision.items():
+        if col in df.columns:
+            df[col] = df[col].round(decimals)
+
     return df
