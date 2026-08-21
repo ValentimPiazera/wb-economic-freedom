@@ -208,6 +208,22 @@ class TestConvertColumnsToNumeric:
         assert result["GDP"].tolist() == [1000.5, 2000.25]
 
 
+class TestFreedomComponents:
+    """The notebooks must agree on which sub-components survived cleaning."""
+
+    def test_every_component_is_a_column_of_the_export(self):
+        exported = pd.read_csv("data/processed/wb_economic_freedom_merged.csv")
+
+        assert set(cleaning.FREEDOM_COMPONENTS) <= set(exported.columns)
+
+    def test_the_dropped_components_are_not_listed(self):
+        assert "Fiscal Health" not in cleaning.FREEDOM_COMPONENTS
+        assert "Judicial Effectiveness" not in cleaning.FREEDOM_COMPONENTS
+
+    def test_the_overall_score_is_not_one_of_its_own_components(self):
+        assert "Overall Score" not in cleaning.FREEDOM_COMPONENTS
+
+
 class TestDecimalPlaces:
     """Spurious precision has to be visible before it can be removed."""
 

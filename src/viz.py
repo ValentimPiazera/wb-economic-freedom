@@ -9,7 +9,8 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import plotly.express as px
 from adjustText import adjust_text
-from matplotlib.ticker import FuncFormatter, LogLocator
+from matplotlib.colors import LinearSegmentedColormap
+from matplotlib.ticker import FuncFormatter, LogLocator, MaxNLocator
 
 # One shared palette, so every chart in the notebook reads as a single system.
 PAPER = "#fcfcfb"
@@ -21,10 +22,26 @@ BACKDROP = "#d8d7d1"
 ACCENT = "#2a78d6"
 LEADER = "#c3c2b7"
 
+# The counterweight to ACCENT, for the correlation panels: two of the freedom
+# sub-components correlate negatively with prosperity, and a chart that draws
+# them in the same blue as the rest buries the most surprising thing in it.
+ACCENT_NEG = "#c2492f"
+
+HEAT = LinearSegmentedColormap.from_list("paper_accent", [PAPER, ACCENT])
+
 
 def usd_short(value, _pos=None):
     """Format a GDP-per-capita tick as $850 / $2.5k / $100k."""
     return f"${value / 1000:g}k" if value >= 1000 else f"${value:g}"
+
+
+def log10_multiple(value, _pos=None):
+    """Format a log10 change as the multiple it stands for (0.5 -> x3.2).
+
+    A change chart in log units is unreadable without this: nothing about
+    "0.5" says "three times richer", which is the whole claim.
+    """
+    return f"×{10**value:.2g}"
 
 
 def _strip_panel(ax, grid_axis="both"):
@@ -162,6 +179,236 @@ def choropleth_freedom(df, value_col="Overall Score"):
         },
     )
     fig.update_geos(projection_type="natural earth", showcoastlines=True)
+
+    return fig
+
+
+def plot_correlation_decomposition(
+    decomposition,
+    title,
+    xlabel="Correlation with the outcome",
+    subtitle=None,
+):
+    """Dumbbell chart contrasting between-country and within-country r.
+
+    Takes the frame returned by `utils.correlation_decomposition`. The gap
+    between the two dots on each row is the point of the chart: it is the
+    share of a pooled correlation that comes from comparing countries with
+    one another rather than from watching any country actually change.
+
+    The between-country dot is drawn in ACCENT_NEG where it falls below
+    zero, because the two components that reverse sign are easy to miss in a
+    single-colour ranking.
+    """
+    # Reversed so the strongest correlation lands at the top, as in barh.
+    order = decomposition.iloc[::-1].assign(row=range(len(decomposition)))
+    positive = order[order["between"] >= 0]
+    negative = order[order["between"] < 0]
+
+    fig, ax = plt.subplots(figsize=(10, 6.5))
+    fig.patch.set_facecolor(PAPER)
+
+    ax.axvline(0, color=MUTED, linewidth=1, zorder=2)
+    ax.hlines(
+        order["row"],
+        order["within"],
+        order["between"],
+        color=GRID,
+        linewidth=2.5,
+        zorder=3,
+    )
+    ax.scatter(
+        order["within"],
+        order["row"],
+        s=55,
+        color=FAINT,
+        edgecolor=PAPER,
+        linewidth=1,
+        zorder=4,
+        label="Within country (country and year effects removed)",
+    )
+    ax.scatter(
+        positive["between"],
+        positive["row"],
+        s=95,
+        color=ACCENT,
+        edgecolor=PAPER,
+        linewidth=1,
+        zorder=5,
+        label="Between countries (long-run means)",
+    )
+    if not negative.empty:
+        ax.scatter(
+            negative["between"],
+            negative["row"],
+            s=95,
+            color=ACCENT_NEG,
+            edgecolor=PAPER,
+            linewidth=1,
+            zorder=5,
+            label="Between countries, negative",
+        )
+
+    ax.set_yticks(order["row"])
+    ax.set_yticklabels(order.index, fontsize=10, color=MUTED)
+    ax.set_xlabel(xlabel, fontsize=10, color=MUTED)
+    ax.margins(y=0.05)
+    _titles(ax, title, subtitle)
+    _strip_panel(ax, grid_axis="x")
+    ax.legend(
+        loc="lower right",
+        frameon=False,
+        fontsize=9,
+        labelcolor=MUTED,
+        handletextpad=0.4,
+    )
+    fig.tight_layout()
+
+    return fig
+
+
+def plot_change_scatter(
+    changes,
+    x_col,
+    y_col,
+    title,
+    xlabel,
+    ylabel,
+    n_labels=8,
+    subtitle=None,
+    y_formatter=None,
+):
+    """Scatter of two period changes, with the largest movers labelled.
+
+    Takes the frame returned by `utils.period_change`. Only the extremes
+    carry labels: at ~150 countries a fully labelled panel is unreadable,
+    and the argument rests on who moved furthest rather than on the middle
+    of the pack.
+
+    Pass `y_formatter=log10_multiple` when the y axis is a log change, so
+    the ticks read as multiples rather than as bare log units.
+    """
+    movers = set(changes.nlargest(n_labels, x_col).index) | set(
+        changes.nsmallest(n_labels, x_col).index
+    )
+
+    gained = changes[changes[x_col] >= 0]
+    lost = changes[changes[x_col] < 0]
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    fig.patch.set_facecolor(PAPER)
+
+    ax.axhline(0, color=GRID, linewidth=1.2, zorder=1)
+    ax.axvline(0, color=GRID, linewidth=1.2, zorder=1)
+    for subset, colour in ((gained, ACCENT), (lost, ACCENT_NEG)):
+        ax.scatter(
+            subset[x_col],
+            subset[y_col],
+            s=42,
+            color=colour,
+            edgecolor=PAPER,
+            linewidth=0.8,
+            zorder=3,
+        )
+
+    labelled = changes.loc[sorted(movers)]
+    texts = [
+        ax.text(
+            row[x_col],
+            row[y_col],
+            country,
+            fontsize=8,
+            color=INK,
+            zorder=4,
+            path_effects=[pe.withStroke(linewidth=2.5, foreground=PAPER)],
+        )
+        for country, row in labelled.iterrows()
+    ]
+
+    ax.set_xlabel(xlabel, fontsize=10, color=MUTED)
+    ax.set_ylabel(ylabel, fontsize=10, color=MUTED)
+    ax.margins(0.08)
+    if y_formatter:
+        ax.yaxis.set_major_formatter(FuncFormatter(y_formatter))
+    _titles(ax, title, subtitle)
+    _strip_panel(ax)
+
+    # Run last, so labels are nudged apart against the final axis scaling.
+    adjust_text(
+        texts,
+        x=labelled[x_col].to_numpy(),
+        y=labelled[y_col].to_numpy(),
+        ax=ax,
+        expand=(1.3, 1.5),
+        force_text=(0.4, 0.6),
+        max_move=25,
+        time_lim=6,
+        arrowprops={"arrowstyle": "-", "color": LEADER, "linewidth": 0.5},
+    )
+    fig.tight_layout()
+
+    return fig
+
+
+def plot_transition_matrix(
+    matrix, title, xlabel, ylabel, subtitle=None, cmap=HEAT
+):
+    """Heatmap of counts moving between bands, with the diagonal outlined.
+
+    Takes the crosstab returned by `utils.quantile_transitions`. The
+    outlined diagonal is what the eye should land on first: everything on it
+    is a country that held its place relative to the rest of the world.
+    """
+    fig, ax = plt.subplots(figsize=(8, 6.5))
+    fig.patch.set_facecolor(PAPER)
+
+    values = matrix.to_numpy()
+    mesh = ax.imshow(values, cmap=cmap, aspect="auto")
+
+    # Annotate every cell: the counts are the substance, the shading is only
+    # there to make the diagonal readable at a glance.
+    threshold = values.max() * 0.6
+    for row in range(values.shape[0]):
+        for col in range(values.shape[1]):
+            ax.text(
+                col,
+                row,
+                values[row, col],
+                ha="center",
+                va="center",
+                fontsize=11,
+                color=PAPER if values[row, col] > threshold else INK,
+            )
+        ax.add_patch(
+            plt.Rectangle(
+                (row - 0.5, row - 0.5),
+                1,
+                1,
+                fill=False,
+                edgecolor=ACCENT_NEG,
+                linewidth=2,
+            )
+        )
+
+    ax.set_xticks(range(len(matrix.columns)), matrix.columns, fontsize=10)
+    ax.set_yticks(range(len(matrix.index)), matrix.index, fontsize=10)
+    ax.set_xlabel(xlabel, fontsize=10, color=MUTED)
+    ax.set_ylabel(ylabel, fontsize=10, color=MUTED)
+    _titles(ax, title, subtitle)
+    ax.grid(False)
+    ax.tick_params(which="both", length=0, colors=FAINT)
+    for spine in ax.spines.values():
+        spine.set_visible(False)
+
+    bar = fig.colorbar(mesh, ax=ax, shrink=0.8)
+    # Counts, so half a country on the scale would be nonsense.
+    bar.locator = MaxNLocator(integer=True)
+    bar.update_ticks()
+    bar.set_label("Number of countries", fontsize=9, color=MUTED)
+    bar.outline.set_visible(False)
+    bar.ax.tick_params(length=0, colors=FAINT, labelsize=9)
+
+    fig.tight_layout()
 
     return fig
 

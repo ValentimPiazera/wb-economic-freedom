@@ -93,6 +93,24 @@ WB_NUMERIC_COLS = [
     "Unemployment, total (% of total labor force) (modeled ILO estimate)",
 ]
 
+# The ten Index sub-components that survive cleaning: Fiscal Health and
+# Judicial Effectiveness are dropped in Part VI of I-cleaning.ipynb for ~64%
+# missingness. Kept as one named list because the analysis and modelling
+# notebooks have to mean the same thing by "the components", and two copies
+# would drift apart the moment another one is dropped.
+FREEDOM_COMPONENTS = [
+    "Property Rights",
+    "Government Integrity",
+    "Tax Burden",
+    "Government Spending",
+    "Business Freedom",
+    "Labor Freedom",
+    "Monetary Freedom",
+    "Trade Freedom",
+    "Investment Freedom",
+    "Financial Freedom",
+]
+
 # Decimal places kept per numeric column of the final merged frame. Float
 # arithmetic and the World Bank export leave up to eighteen decimal places
 # behind (an inflation rate to 1e-16 of a percentage point, a GDP figure
