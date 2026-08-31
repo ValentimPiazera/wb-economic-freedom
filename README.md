@@ -2,7 +2,7 @@
 
 Exploring how economic freedom relates to real-world development outcomes, by merging World Bank development indicators with the Heritage Foundation's Index of Economic Freedom.
 
-> **Status:** cleaning is complete and the merged dataset is published to `data/processed/`. Exploratory analysis is in progress; the machine learning stage has not started.
+> **Status:** complete. The merged dataset is published to `data/processed/` and the exploratory analysis is written up in full.
 
 ## Project Goal
 
@@ -11,8 +11,9 @@ This project investigates the relationship between economic freedom (property ri
 Stages:
 
 1. **Cleaning** *(complete)* — merge two messy, real-world sources into a single clean dataset → [`notebooks/I-cleaning.ipynb`](notebooks/I-cleaning.ipynb)
-2. **Analysis** *(in progress)* — exploratory data analysis and visualisation → [`notebooks/II-analysis.ipynb`](notebooks/II-analysis.ipynb)
-3. **Machine Learning** *(not started)* — predictive modelling on the cleaned dataset → [`notebooks/III-ml.ipynb`](notebooks/III-ml.ipynb)
+2. **Analysis** *(complete)* — exploratory data analysis, visualisation, and the correlation decomposition → [`notebooks/II-analysis.ipynb`](notebooks/II-analysis.ipynb)
+
+The project deliberately stops at description. It establishes what the two sources say about each other, and is explicit about the questions they cannot answer — which, as the analysis shows, includes most causal ones.
 
 ## Data Sources
 
@@ -39,19 +40,27 @@ Each of these is investigated and documented in `I-cleaning.ipynb` rather than f
 - **Labor Freedom.** 19.5% missing, concentrated in 2001–2008 because the component entered the Index methodology later. Kept, with the caveat that time-series work involving it should not read pre-2009 as a genuine gap.
 - **School enrollment, secondary.** 30.6% missing, spiking to 95.6% in 2025 through reporting lag. Kept.
 - **Life expectancy.** Two implausible Central African Republic values (14.7 years in 2009, 18.8 in 2022) were set to `NaN` as isolated data errors.
-- **Extreme FDI, GDP growth, and inflation values.** Verified as real economic phenomena rather than errors and kept as-is. FDI-to-GDP swings concentrate in four financial-centre economies (Liechtenstein, Malta, Cyprus, Luxembourg) and may need capping or a dedicated flag before use as an ML feature.
-- **Year alignment.** The Heritage Index published for year *N* is graded on data collected through roughly mid-*N-1*, so joining it onto World Bank calendar year *N* builds in a small lag. This is documented as a deliberate choice in Part IV of the cleaning notebook and should be revisited before any causal or predictive framing.
+- **Extreme FDI, GDP growth, and inflation values.** Verified as real economic phenomena rather than errors and kept as-is. FDI-to-GDP swings concentrate in four financial-centre economies (Liechtenstein, Malta, Cyprus, Luxembourg), where a handful of countries can dominate any FDI aggregate.
+- **Year alignment.** The Heritage Index published for year *N* is graded on data collected through roughly mid-*N-1*, so joining it onto World Bank calendar year *N* builds in a small lag. This is documented as a deliberate choice in Part IV of the cleaning notebook, and it is one reason the analysis stops short of causal claims.
 
-## Modelling Constraints
+## Key Findings
 
-Six properties of the cleaned dataset were measured because each one produces a *plausible-looking result* rather than an error, and would otherwise only surface after modelling work had been built on top of it. They are written up in full, with the measured figures, at the bottom of [`notebooks/III-ml.ipynb`](notebooks/III-ml.ipynb). In short:
+The full write-up, with the charts, is Part V of [`notebooks/II-analysis.ipynb`](notebooks/II-analysis.ipynb).
 
-1. `GDP per capita` is exactly `GDP / Population` (relative error 2.5e-16) — leaving both in the features gives R² ≈ 1.00 for free.
-2. The mean of the ten remaining freedom sub-components predicts `Overall Score` with R² = 0.976 — predicting one from the others re-derives Heritage's formula, not economics.
-3. Year-on-year autocorrelation is 0.98–0.99, so a shuffled train/test split leaks; use `GroupKFold` by country or a temporal split.
+1. **The freedom–prosperity relationship is strong, and almost entirely cross-sectional.** Between countries, the Overall Score correlates 0.71 with log GDP per capita (0.79 in the 2025 snapshot). Within a country, once its own average and each year's global average are removed, that falls to 0.24 — and to 0.03 against life expectancy. The data says a great deal about which countries are rich and free together, and very little about whether a country that becomes freer becomes richer.
+2. **The Overall Score is weaker than its own best component.** `Government Integrity` alone correlates 0.83 across countries, against 0.71 for the aggregate it feeds into. `Government Spending` (−0.45) and `Tax Burden` (−0.20) run the other way, so the headline number averages components of opposite sign. `Tax Burden` reverses outright between the two levels.
+3. **Geography accounts for more than half the raw spread.** 54.8% of the 2025 variance in log GDP per capita sits between continents — though the relationship still holds inside all six.
+4. **Countries move slowly.** 40% end 2024 in the quintile they began 2001 in, rising to 67% in the top quintile. Change in score correlates only 0.41 with change in GDP per capita.
+
+## Measured Properties of the Dataset
+
+Five properties were measured rather than assumed, because each one produces a *plausible-looking result* rather than an error. They are what the analysis is built on:
+
+1. `GDP per capita` is `GDP / Population` (max relative error 4.0e-5, median 4.1e-7 — bounded by the export's rounding, not by any real gap). The three columns carry two independent quantities.
+2. The mean of the ten remaining freedom sub-components reproduces `Overall Score` with R² = 0.976 — the aggregate is very nearly its own arithmetic mean.
+3. Year-on-year autocorrelation is 0.98–0.99, which is why the analysis separates between-country from within-country variation rather than pooling them.
 4. A naive `dropna()` cuts the data from 4,581 rows to 2,385 and silently removes 2001–2004 and all of 2025.
-5. Missingness tracks the outcome (median GDP per capita $2,510 for countries missing school enrollment vs $5,801 for those reporting it), so mean imputation injects the inverse bias.
-6. The `Index Year` lag stops being cosmetic as soon as the framing becomes causal.
+5. Missingness tracks the outcome: median GDP per capita is $2,510 for countries missing school enrollment against $5,801 for those reporting it, and three of the ten lowest-scoring countries in 2025 report no GDP per capita at all.
 
 ### A note on snapshot years
 
@@ -84,8 +93,7 @@ wb-economic-freedom/
 │
 ├── notebooks/
 │   ├── I-cleaning.ipynb      # loading, standardising, merging, cleaning
-│   ├── II-analysis.ipynb     # exploratory data analysis & visualisation
-│   └── III-ml.ipynb          # future: predictive modelling
+│   └── II-analysis.ipynb     # exploratory data analysis & visualisation
 │
 ├── src/
 │   ├── __init__.py
@@ -131,7 +139,6 @@ Both commands run from the repository root. Notebooks are linted too, which is w
 - **plotly** — the two animated charts, where interactivity is the point (these do **not** render on GitHub; open the notebook in Colab to view them)
 - **adjustText** — label placement on the dense per-continent scatter panels
 - **pycountry_convert** — deriving the `Continent` column from ISO3 codes
-- **scikit-learn** *(future)* — machine learning
 
 ## Roadmap
 
@@ -141,10 +148,10 @@ Both commands run from the repository root. Notebooks are linted too, which is w
 - [x] Standardise country names/codes across sources
 - [x] Merge datasets into a single country-year table
 - [x] Handle missing data and outliers
+- [x] Normalise numeric precision before export
 - [x] Export the cleaned dataset to `data/processed/`
-- [ ] Exploratory analysis and visualisation *(in progress — correlation analysis and key findings still to write)*
-- [ ] Feature selection for modelling
-- [ ] Machine learning model
+- [x] Exploratory analysis and visualisation
+- [x] Correlation decomposition and key findings
 
 ## Technical References
 
@@ -152,12 +159,11 @@ The conventions in this repository are not invented ad hoc; each one is borrowed
 
 | Reference | Author | What it informed here |
 | --- | --- | --- |
-| *Hands-On Machine Learning with Scikit-Learn, Keras & TensorFlow*, 3rd edition | Aurélien Géron | The modelling stage — validation strategy, leakage, and the reasoning behind the measured constraints in `III-ml.ipynb` |
 | *Software Engineering for Data Scientists* | Catherine Nelson | Repository layout (`src/` — `notebooks/` — `tests/`), testing the pure transformations, linting and formatting as a definition of done |
 | *Python for Data Analysis*, 3rd edition | Wes McKinney | pandas idiom — reshaping with melt/pivot, merging, missing-data handling |
 
 Library documentation was the reference of record for API behaviour, in preference to secondhand summaries:
-[pandas](https://pandas.pydata.org/docs/), [matplotlib](https://matplotlib.org/stable/index.html), [plotly](https://plotly.com/python/), [scikit-learn](https://scikit-learn.org/stable/), [pycountry_convert](https://pypi.org/project/pycountry-convert/), [ruff](https://docs.astral.sh/ruff/), [pytest](https://docs.pytest.org/).
+[pandas](https://pandas.pydata.org/docs/), [matplotlib](https://matplotlib.org/stable/index.html), [plotly](https://plotly.com/python/), [adjustText](https://adjusttext.readthedocs.io/), [pycountry_convert](https://pypi.org/project/pycountry-convert/), [ruff](https://docs.astral.sh/ruff/), [pytest](https://docs.pytest.org/).
 
 **Claude Opus 5** (Anthropic) was used as a working assistant throughout: interpreting the data, pressure-testing conclusions, and reviewing code. Every finding it surfaced was verified against the dataset before being written down — the figures quoted in this README and in the notebooks are measured, not asserted.
 

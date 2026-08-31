@@ -95,9 +95,9 @@ WB_NUMERIC_COLS = [
 
 # The ten Index sub-components that survive cleaning: Fiscal Health and
 # Judicial Effectiveness are dropped in Part VI of I-cleaning.ipynb for ~64%
-# missingness. Kept as one named list because the analysis and modelling
-# notebooks have to mean the same thing by "the components", and two copies
-# would drift apart the moment another one is dropped.
+# missingness. Kept as one named list because the notebooks have to mean the
+# same thing by "the components", and two copies would drift apart the moment
+# another one is dropped.
 FREEDOM_COMPONENTS = [
     "Property Rights",
     "Government Integrity",
@@ -300,11 +300,11 @@ def decimal_places(df):
 def round_numeric_columns(df, precision=NUMERIC_PRECISION):
     """Round every numeric column to the precision its source supports.
 
-    Rounding is deliberately the only rescaling applied here. Standardising
-    or min-max scaling would destroy the readability this step exists for,
-    and fitting a scaler across the whole table before any train/test split
-    would leak test-set statistics into training — so scaling belongs inside
-    a modelling pipeline, on the training fold only.
+    Rounding is deliberately the only rescaling applied. Standardising or
+    min-max scaling would destroy the readability this step exists for and
+    leave the published dataset in units no reader can interpret: a GDP per
+    capita of -0.43 means nothing on its own. The exported table keeps its
+    natural units.
 
     Raises for a numeric column missing from the mapping rather than passing
     it through untouched: an indicator added to the pipeline later would
