@@ -5,12 +5,17 @@ GitHub, which plotly's interactive output does not), and plotly.express for
 the two animated charts where interactivity is the point.
 """
 
+from pathlib import Path
+
 import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import plotly.express as px
 from adjustText import adjust_text
 from matplotlib.colors import LinearSegmentedColormap
 from matplotlib.ticker import FuncFormatter, LogLocator, MaxNLocator
+
+# Resolved from the repository root, which is where the notebooks run.
+FIGURE_DIR = Path("figures")
 
 # One shared palette, so every chart in the notebook reads as a single system.
 PAPER = "#fcfcfb"
@@ -42,6 +47,55 @@ def log10_multiple(value, _pos=None):
     "0.5" says "three times richer", which is the whole claim.
     """
     return f"×{10**value:.2g}"
+
+
+def save_figure(fig, name, directory=FIGURE_DIR, dpi=150):
+    """Write a figure to `figures/`, returning the path written.
+
+    Called just before `plt.show()` so an exported panel cannot drift from
+    the notebook that produced it: re-running the notebook rewrites every
+    file it is responsible for, the same discipline the committed cell
+    outputs already follow. Saving has to come first, because the inline
+    backend closes the figure once it has been shown.
+
+    Deliberately does not display the figure itself. `plt.show()` stays the
+    last statement in the cell so the notebook renders the chart rather than
+    the repr of the path returned here.
+
+    The saved file carries the figure's own background rather than
+    matplotlib's default white, so the PNG matches the panel as it appears
+    in the notebook.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{name}.png"
+
+    fig.savefig(path, dpi=dpi, facecolor=fig.get_facecolor())
+
+    return path
+
+
+def save_plotly_figure(
+    fig, name, directory=FIGURE_DIR, width=1100, height=650, scale=2
+):
+    """Write a plotly figure to `figures/` as a static PNG.
+
+    A still, and only ever a still. Both plotly charts in the analysis run
+    across 25 years, and interactivity — hovering a point to find out which
+    country it is — is the reason they exist at all. The exported image
+    keeps them visible on GitHub, where plotly does not render; it is not a
+    substitute for opening the notebook.
+
+    Goes through `kaleido`, which is what plotly shells out to for static
+    export and why it is a declared dependency.
+    """
+    directory = Path(directory)
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / f"{name}.png"
+
+    fig.write_image(path, width=width, height=height, scale=scale)
+
+    return path
 
 
 def _strip_panel(ax, grid_axis="both"):
@@ -141,14 +195,23 @@ def plot_score_distribution(
     return fig
 
 
-def scatter_freedom_development(df, y_col="GDP per capita (current US$)"):
-    """Animated scatter of economic freedom against a development outcome."""
+def scatter_freedom_development(
+    df, y_col="GDP per capita (current US$)", year=None
+):
+    """Animated scatter of economic freedom against a development outcome.
+
+    Passing `year` drops the animation and returns that single year. Only
+    the static export uses it: a PNG can hold one frame, and the frame
+    plotly would otherwise write is 2001, the sparsest year in the panel.
+    """
+    frame = df if year is None else df[df["Year"] == year]
+
     return px.scatter(
-        df,
+        frame,
         x="Overall Score",
         y=y_col,
         hover_name="Country Name",
-        animation_frame="Year",
+        animation_frame=None if year else "Year",
         log_y=True,
         range_y=[100, 250000],
         range_x=[0, 100],
@@ -156,14 +219,21 @@ def scatter_freedom_development(df, y_col="GDP per capita (current US$)"):
     )
 
 
-def choropleth_freedom(df, value_col="Overall Score"):
-    """Animated world map of the economic freedom score by country."""
+def choropleth_freedom(df, value_col="Overall Score", year=None):
+    """Animated world map of the economic freedom score by country.
+
+    Passing `year` drops the animation and returns that single year, for
+    the same reason as `scatter_freedom_development`.
+    """
+    frame = df if year is None else df[df["Year"] == year]
+    title = f"{value_col} by Country"
+
     fig = px.choropleth(
-        df,
+        frame,
         locations="Country Code",
         color=value_col,
         hover_name="Country Name",
-        animation_frame="Year",
+        animation_frame=None if year else "Year",
         color_continuous_scale="RdYlGn",
     )
 
@@ -171,7 +241,7 @@ def choropleth_freedom(df, value_col="Overall Score"):
         width=1100,
         height=650,
         title={
-            "text": f"{value_col} by Country",
+            "text": f"{title} ({year})" if year else title,
             "x": 0.5,
             "xanchor": "center",
             "y": 0.95,

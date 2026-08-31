@@ -1,6 +1,7 @@
 pandas>=2.0
 matplotlib>=3.7
 plotly>=5.15
+kaleido>=0.2
 adjustText>=1.0
 pycountry_convert>=0.7
 jupyter>=1.0

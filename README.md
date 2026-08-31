@@ -103,10 +103,10 @@ wb-economic-freedom/
 │
 ├── tests/
 │   ├── test_cleaning.py      # unit tests for the cleaning transformations
-│   └── test_utils.py         # unit tests for the coverage helpers
+│   ├── test_utils.py         # unit tests for the coverage and panel helpers
+│   └── test_viz.py           # unit tests for the formatters and figure export
 │
-├── reports/
-│   └── figures/              # exported charts
+├── figures/                  # the eleven exported panels, written by II-analysis
 │
 ├── conftest.py               # puts the repo root on sys.path for pytest
 ├── ruff.toml                 # lint + format configuration
@@ -137,8 +137,13 @@ Both commands run from the repository root. Notebooks are linted too, which is w
 - **pandas** — data manipulation
 - **matplotlib** — the static, portfolio-facing panels (these render on GitHub)
 - **plotly** — the two animated charts, where interactivity is the point (these do **not** render on GitHub; open the notebook in Colab to view them)
+- **kaleido** — writing those two charts out as static stills for `figures/`
 - **adjustText** — label placement on the dense per-continent scatter panels
 - **pycountry_convert** — deriving the `Continent` column from ISO3 codes
+
+### A note on the two plotly stills
+
+`figures/05-freedom-vs-gdp-scatter-still.png` and `figures/06-freedom-choropleth-still.png` are single frames of charts that animate across 25 years, and they are the weakest images in the folder by some distance. The movement is the argument in both, and the hover labels are what tell you which country a point or a country shape belongs to — a PNG has neither. They exist so that something is visible on GitHub, which does not render plotly. **Open `II-analysis.ipynb` in Colab or Jupyter to see them as intended.** The other nine panels lose nothing as images.
 
 ## Roadmap
 
