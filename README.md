@@ -2,8 +2,6 @@
 
 Exploring how economic freedom relates to real-world development outcomes, by merging World Bank development indicators with the Heritage Foundation's Index of Economic Freedom.
 
-> **Status:** complete. The merged dataset is published to `data/processed/` and the exploratory analysis is written up in full.
-
 ## Project Goal
 
 This project investigates the relationship between economic freedom (property rights, government integrity, trade freedom, etc.) and development outcomes (GDP per capita, life expectancy, unemployment, and more) across countries and years.
@@ -144,19 +142,6 @@ Both commands run from the repository root. Notebooks are linted too, which is w
 ### A note on the two plotly stills
 
 `figures/05-freedom-vs-gdp-scatter-still.png` and `figures/06-freedom-choropleth-still.png` are single frames of charts that animate across 25 years, and they are the weakest images in the folder by some distance. The movement is the argument in both, and the hover labels are what tell you which country a point or a country shape belongs to — a PNG has neither. They exist so that something is visible on GitHub, which does not render plotly. **Open `II-analysis.ipynb` in Colab or Jupyter to see them as intended.** The other nine panels lose nothing as images.
-
-## Roadmap
-
-- [x] Define project scope and data sources
-- [x] Set up folder structure
-- [x] Download raw data (World Bank + Economic Freedom Index)
-- [x] Standardise country names/codes across sources
-- [x] Merge datasets into a single country-year table
-- [x] Handle missing data and outliers
-- [x] Normalise numeric precision before export
-- [x] Export the cleaned dataset to `data/processed/`
-- [x] Exploratory analysis and visualisation
-- [x] Correlation decomposition and key findings
 
 ## Technical References
 
